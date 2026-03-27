@@ -9,3 +9,10 @@ DerivedData/
 output/
 input/
 tmp/
+docs/plans/
+
+# Local planning and private working notes
+.private-plans/
+task_plan.md
+findings.md
+progress.md

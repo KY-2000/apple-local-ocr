@@ -29,7 +29,7 @@ struct OCRService: TextRecognizing {
     }
 }
 
-enum OCREngine: String, Equatable {
+enum OCREngine: String, Equatable, CaseIterable {
     case vision
     case liveText
 }
@@ -62,5 +62,20 @@ struct LiveTextOCRService: TextRecognizing {
         let analysis = try await analyzer.analyze(cgImage, orientation: .up, configuration: analyzerConfiguration)
 
         return analysis.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+enum OCRLanguageSupport {
+    static func supportedLanguages(for engine: OCREngine) throws -> [String] {
+        switch engine {
+        case .vision:
+            return try VNRecognizeTextRequest.supportedRecognitionLanguages(
+                for: .accurate,
+                revision: VNRecognizeTextRequest.currentRevision
+            )
+            .sorted()
+        case .liveText:
+            return ImageAnalyzer.supportedTextRecognitionLanguages.sorted()
+        }
     }
 }

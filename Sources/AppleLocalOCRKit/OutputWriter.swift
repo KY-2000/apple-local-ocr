@@ -1,10 +1,41 @@
 import Foundation
 
+enum OutputFormat: String, Equatable {
+    case txt
+    case json
+    case md
+
+    var fileExtension: String {
+        rawValue
+    }
+}
+
 enum OutputWriter {
+    static func defaultOutputDirectory(workingDirectory: URL) -> URL {
+        workingDirectory.appendingPathComponent("output", isDirectory: true)
+    }
+
     static func defaultOutputURL(forInput input: URL, workingDirectory: URL) -> URL {
-        let outputDirectory = workingDirectory.appendingPathComponent("output", isDirectory: true)
+        outputURL(
+            forInput: input,
+            outputDirectory: defaultOutputDirectory(workingDirectory: workingDirectory),
+            relativeOutputPath: nil,
+            format: .txt
+        )
+    }
+
+    static func outputURL(
+        forInput input: URL,
+        outputDirectory: URL,
+        relativeOutputPath: String?,
+        format: OutputFormat
+    ) -> URL {
+        if let relativeOutputPath {
+            return outputDirectory.appendingPathComponent(relativeOutputPath, isDirectory: false)
+        }
+
         let inputName = input.deletingPathExtension().lastPathComponent
-        return outputDirectory.appendingPathComponent("\(inputName).txt")
+        return outputDirectory.appendingPathComponent("\(inputName).\(format.fileExtension)")
     }
 
     static func write(text: String, to outputURL: URL) throws {

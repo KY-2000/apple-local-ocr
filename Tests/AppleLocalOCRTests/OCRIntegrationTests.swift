@@ -1,49 +1,52 @@
 #if os(macOS)
-import AppKit
 import XCTest
 @testable import AppleLocalOCRKit
 
 final class OCRIntegrationTests: XCTestCase {
-    func test_ocrReadsGeneratedImageAndWritesTxtIntoOutputFolder() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        let inputImageURL = tempDir.appendingPathComponent("sample-hello.png")
-        try makeTestImage(text: "HELLO OCR", at: inputImageURL)
+    func test_ocrReadsSampleEnglishImageAndWritesTxtIntoOutputFolder() async throws {
+        let tempDir = try makeTempDirectory()
+        let inputImageURL = sampleDirectory().appendingPathComponent("sample-ocr-en.png")
 
         let result = await CLI.run(arguments: [inputImageURL.path], currentDirectory: tempDir)
         XCTAssertEqual(result.exitCode, 0, result.stderr)
 
-        let output = tempDir.appendingPathComponent("output/sample-hello.txt")
+        let output = tempDir.appendingPathComponent("output/sample-ocr-en.txt")
         let text = try String(contentsOf: output, encoding: .utf8)
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("hello"), "OCR output: \(text)")
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("invoice"), "OCR output: \(text)")
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("openclaw"), "OCR output: \(text)")
     }
 
-    private func makeTestImage(text: String, at url: URL) throws {
-        let size = NSSize(width: 1000, height: 300)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        NSColor.white.setFill()
-        NSRect(origin: .zero, size: size).fill()
+    func test_ocrReadsSampleMultilingualPDFAndWritesCombinedTxtIntoOutputFolder() async throws {
+        let tempDir = try makeTempDirectory()
+        let inputPDFURL = sampleDirectory().appendingPathComponent("sample-ocr.pdf")
 
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 100, weight: .bold),
-            .foregroundColor: NSColor.black
-        ]
-        let attrText = NSAttributedString(string: text, attributes: attributes)
-        attrText.draw(at: NSPoint(x: 40, y: 100))
-        image.unlockFocus()
+        let result = await CLI.run(
+            arguments: ["--lang", "zh-Hans,en-US", inputPDFURL.path],
+            currentDirectory: tempDir
+        )
+        XCTAssertEqual(result.exitCode, 0, result.stderr)
 
-        guard
-            let tiff = image.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiff),
-            let png = bitmap.representation(using: .png, properties: [:])
-        else {
-            XCTFail("Unable to generate png data")
-            return
-        }
+        let output = tempDir.appendingPathComponent("output/sample-ocr.txt")
+        let text = try String(contentsOf: output, encoding: .utf8)
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("invoice"), "OCR output: \(text)")
+        XCTAssertTrue(text.contains("订单编号") || text.contains("订单"), "OCR output: \(text)")
+    }
 
-        try png.write(to: url)
+    private func repoRoot(file: StaticString = #filePath) -> URL {
+        URL(fileURLWithPath: "\(file)")
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func sampleDirectory(file: StaticString = #filePath) -> URL {
+        repoRoot(file: file).appendingPathComponent("sample", isDirectory: true)
+    }
+
+    private func makeTempDirectory() throws -> URL {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        return tempDir
     }
 }
 #endif
